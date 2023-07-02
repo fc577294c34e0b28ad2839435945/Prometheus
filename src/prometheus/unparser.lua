@@ -112,28 +112,36 @@ function Unparser:unparse(ast)
 end
 
 function Unparser:unparseBlock(block, tabbing)
-	local code = "";
-	
+	local code = {};
+	local ind = 0;
+	local statementCode = "";
+
 	if(#block.statements < 1) then
-		return self:whitespace();
+		return {self:whitespace()};
 	end
 	
 	for i, statement in ipairs(block.statements) do
 		if(statement.kind ~= AstKind.NopStatement) then
-			local statementCode = self:unparseStatement(statement, tabbing);
-			if(not self.prettyPrint and #code > 0 and string.sub(statementCode, 1, 1) == "(") then
-				-- This is so that the following works:
-				-- print("Test");(function() print("Test2") end)();
-				statementCode = ";" .. statementCode;
+			ind = #code
+			statementCode = self:unparseStatement(statement, tabbing);
+			if ind ~= 0 then
+				if(not self.prettyPrint and #code[ind] > 0 and string.sub(statementCode, 1, 1) == "(") then
+					-- This is so that the following works:
+					-- print("Test");(function() print("Test2") end)();
+					statementCode = ";" .. statementCode;
+				end
+				local ws = self:whitespaceIfNeeded2(code[ind], self:whitespaceIfNeeded(statementCode, self:newline(true)));
+				if i ~= 1 then
+					ind = ind + 1
+					code[ind] = ws;
+				end
 			end
-			local ws = self:whitespaceIfNeeded2(code, self:whitespaceIfNeeded(statementCode, self:newline(true)));
-			if i ~= 1 then
-				code = code .. ws;
-			end
+
 			if(self.prettyPrint) then
 				statementCode = statementCode .. ";"
 			end
-			code = code .. statementCode;
+
+			code[ind+1] = statementCode;
 		end
 	end
 	
@@ -154,7 +162,7 @@ function Unparser:unparseStatement(statement, tabbing)
 		
 	-- Do Statement
 	elseif(statement.kind == AstKind.DoStatement) then
-		local bodyCode = self:unparseBlock(statement.body, tabbing);
+		local bodyCode = table.concat(self:unparseBlock(statement.body, tabbing));
 		code = "do" ..  self:whitespaceIfNeeded(bodyCode, self:newline(true))
 			.. bodyCode .. self:newline(false)
 			.. self:whitespaceIfNeeded2(bodyCode, self:tabs(tabbing, true)) .. "end";
@@ -163,7 +171,7 @@ function Unparser:unparseStatement(statement, tabbing)
 	elseif(statement.kind == AstKind.WhileStatement) then
 		local expressionCode = self:unparseExpression(statement.condition, tabbing);
 		
-		local bodyCode = self:unparseBlock(statement.body, tabbing);
+		local bodyCode = table.concat(self:unparseBlock(statement.body, tabbing));
 		
 		
 		code = "while" .. self:whitespaceIfNeeded(expressionCode) .. expressionCode .. self:whitespaceIfNeeded2(expressionCode) 
@@ -175,7 +183,7 @@ function Unparser:unparseStatement(statement, tabbing)
 	elseif(statement.kind == AstKind.RepeatStatement) then
 		local expressionCode = self:unparseExpression(statement.condition, tabbing);
 
-		local bodyCode = self:unparseBlock(statement.body, tabbing);
+		local bodyCode = table.concat(self:unparseBlock(statement.body, tabbing));
 
 
 		code = "repeat" ..  self:whitespaceIfNeeded(bodyCode, self:newline(true))
@@ -184,7 +192,7 @@ function Unparser:unparseStatement(statement, tabbing)
 
 	-- For Statement
 	elseif(statement.kind == AstKind.ForStatement) then
-		local bodyCode = self:unparseBlock(statement.body, tabbing);
+		local bodyCode = table.concat(self:unparseBlock(statement.body, tabbing));
 		
 		code = "for" .. self:whitespace() .. statement.scope:getVariableName(statement.id) .. self:optionalWhitespace() .. "=";
 		code = code .. self:optionalWhitespace() .. self:unparseExpression(statement.initialValue, tabbing) .. ",";
@@ -217,7 +225,7 @@ function Unparser:unparseStatement(statement, tabbing)
 			code = code .. "," .. self:optionalWhitespace() .. exprcode;
 		end
 		
-		local bodyCode = self:unparseBlock(statement.body, tabbing);
+		local bodyCode = table.concat(self:unparseBlock(statement.body, tabbing));
 		code = code .. self:whitespaceIfNeeded2(code) .. "do" .. self:whitespaceIfNeeded(bodyCode, self:newline(true))
 			.. bodyCode .. self:newline(false)
 			.. self:whitespaceIfNeeded2(bodyCode, self:tabs(tabbing, true)) .. "end";
@@ -227,20 +235,20 @@ function Unparser:unparseStatement(statement, tabbing)
 	elseif(statement.kind == AstKind.IfStatement) then
 		local exprcode = self:unparseExpression(statement.condition, tabbing);
 		
-		local bodyCode = self:unparseBlock(statement.body, tabbing);
+		local bodyCode = table.concat(self:unparseBlock(statement.body, tabbing));
 		code = "if" .. self:whitespaceIfNeeded(exprcode) .. exprcode .. self:whitespaceIfNeeded2(exprcode) .. "then" .. self:whitespaceIfNeeded(bodyCode, self:newline(true))
 			.. bodyCode;
 		
 		for i, eif in ipairs(statement.elseifs) do
 			exprcode = self:unparseExpression(eif.condition, tabbing);
-			bodyCode = self:unparseBlock(eif.body, tabbing);
+			bodyCode = table.concat(self:unparseBlock(eif.body, tabbing));
 			code = code .. self:newline(false) .. self:whitespaceIfNeeded2(code, self:tabs(tabbing, true)) .. "elseif" .. self:whitespaceIfNeeded(exprcode) .. exprcode .. self:whitespaceIfNeeded2(exprcode) 
 				.. "then" .. self:whitespaceIfNeeded(bodyCode, self:newline(true))
 				.. bodyCode;
 		end
 		
 		if(statement.elsebody) then
-			bodyCode = self:unparseBlock(statement.elsebody, tabbing);
+			bodyCode = table.concat(self:unparseBlock(statement.elsebody, tabbing));
 			code = code .. self:newline(false) .. self:whitespaceIfNeeded2(code, self:tabs(tabbing, true)) .. "else" .. self:whitespaceIfNeeded(bodyCode, self:newline(true))
 				.. bodyCode;
 		end
@@ -269,7 +277,7 @@ function Unparser:unparseStatement(statement, tabbing)
 		end
 		code = code .. ")";
 		
-		local bodyCode = self:unparseBlock(statement.body, tabbing);
+		local bodyCode = table.concat(self:unparseBlock(statement.body, tabbing));
 		code = code .. self:newline(false) .. bodyCode .. self:newline(false) .. self:whitespaceIfNeeded2(bodyCode, self:tabs(tabbing, true)) .. "end";
 		
 		
@@ -290,7 +298,7 @@ function Unparser:unparseStatement(statement, tabbing)
 		end
 		code = code .. ")";
 
-		local bodyCode = self:unparseBlock(statement.body, tabbing);
+		local bodyCode = table.concat(self:unparseBlock(statement.body, tabbing));
 		code = code .. self:newline(false) .. bodyCode .. self:newline(false) .. self:whitespaceIfNeeded2(bodyCode, self:tabs(tabbing, true)) .. "end";
 		
 	-- Local Variable Declaration
@@ -461,9 +469,9 @@ function Unparser:unparseExpression(expression, tabbing)
 		end
 		return str;
 	end
-	
+
 	if(expression.kind == AstKind.VariableExpression or expression.kind == AstKind.AssignmentVariable) then
-			return expression.scope:getVariableName(expression.id);
+		return expression.scope:getVariableName(expression.id);
 	end
 	
 	if(expression.kind == AstKind.StringExpression) then
@@ -816,7 +824,7 @@ function Unparser:unparseExpression(expression, tabbing)
 		end
 		code = code .. ")";
 
-		local bodyCode = self:unparseBlock(expression.body, tabbing);
+		local bodyCode = table.concat(self:unparseBlock(expression.body, tabbing));
 		code = code .. self:newline(false) .. bodyCode .. self:newline(false) .. self:whitespaceIfNeeded2(bodyCode, self:tabs(tabbing, true)) .. "end";
 		return code;
 	end
