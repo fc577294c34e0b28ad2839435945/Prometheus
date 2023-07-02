@@ -150,5 +150,8 @@ Prometheus.Logger:info(string.format("Writing output to \"%s\"", outFile));
 
 -- Write Output
 local handle = io.open(outFile, "w");
-handle:write(out);
+for i = 1,#out do
+    handle:write(out[i]);
+end
 handle:close();
+out = {};
