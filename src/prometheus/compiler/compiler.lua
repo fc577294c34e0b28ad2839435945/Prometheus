@@ -66,7 +66,8 @@ function Compiler:createBlock()
     repeat
         id = math.random(0, 2^24)
     until not self.usedBlockIds[id];
-
+	self.usedBlockIds[id] = true;
+	
     local scope = Scope:new(self.containerFuncScope);
     local block = {
         id = id;
