@@ -197,6 +197,8 @@ function EncryptStrings:apply(ast, pipeline)
 	local decryptVar = scope:addVariable();
 	local stringsVar = scope:addVariable();
 	
+	local encrypted, seed;
+	
 	doStat.body.scope:setParent(ast.body.scope);
 
 	visitast(newAst, nil, function(node, data)
@@ -222,7 +224,7 @@ function EncryptStrings:apply(ast, pipeline)
 		if(node.kind == AstKind.StringExpression) then
 			data.scope:addReferenceToHigherScope(scope, stringsVar);
 			data.scope:addReferenceToHigherScope(scope, decryptVar);
-			local encrypted, seed = Encryptor.encrypt(node.value);
+			encrypted, seed = Encryptor.encrypt(node.value);
 			return Ast.IndexExpression(Ast.VariableExpression(scope, stringsVar), Ast.FunctionCallExpression(Ast.VariableExpression(scope, decryptVar), {
 				Ast.StringExpression(encrypted), Ast.NumberExpression(seed),
 			}));
