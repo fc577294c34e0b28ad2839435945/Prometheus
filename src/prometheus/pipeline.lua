@@ -198,8 +198,13 @@ function Pipeline:apply(code, filename)
 	
 	local timeDiff = gettime() - startTime;
 	logger:info(string.format("Obfuscation Done in %.2f seconds", timeDiff));
+
+	local oCodeLen = 0
+	for i = 1,#code do
+		oCodeLen = oCodeLen + string.len(code[i])
+	end
 	
-	logger:info(string.format("Generated Code size is %.2f%% of the Source Code size", (string.len(code) / sourceLen)*100))
+	logger:info(string.format("Generated Code size is %.2f%% of the Source Code size", (oCodeLen / sourceLen)*100))
 	
 	return code;
 end
