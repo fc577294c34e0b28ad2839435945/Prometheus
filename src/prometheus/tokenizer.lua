@@ -505,8 +505,9 @@ end
 
 function Tokenizer:scanAll()
 	local tb = {};
+	local token = nil;
 	repeat
-		local token = self:next();
+		token = self:next();
 		table.insert(tb, token);
 	until token.kind == Tokenizer.TokenKind.Eof
 	return tb
